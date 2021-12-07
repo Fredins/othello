@@ -1,4 +1,5 @@
 module Othello where
+
 import           Data.List.Extra                ( chunksOf )
 import           Data.Map                      as M
                                          hiding ( drop
@@ -54,7 +55,6 @@ validFlip :: Player -> Pos -> Board -> Bool
 validFlip p b = undefined
   -- where v = M.lookup p b
 
-update = undefined
 gameOver = undefined
 
 
