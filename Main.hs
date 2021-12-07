@@ -16,6 +16,7 @@ import           GI.Gtk.Declarative
 import           GI.Gtk.Declarative.App.Simple
 import           GI.Gtk.Declarative.Container.Grid
 import           Othello
+import           Data.Vector (Vector, fromList)
 
 data State = State
   { activeP :: Player
@@ -23,6 +24,12 @@ data State = State
   , player1 :: Player
   , board   :: Board
   }
+
+data Images = Images
+      { blank :: G.Image
+      , white :: G.Image
+      , black :: G.Image
+      }
 
 data Event = Close
            | DiskClicked
@@ -36,15 +43,14 @@ update' s e = case e of
 view' :: State -> AppView G.Window Event
 view' s =
   bin G.Window [#title := "hello", on #deleteEvent (const (True, Close))]
-    $ widget G.Button [#label := "world", on #clicked DiskClicked]
+    $ w 
 
 
-grid :: State -> Widget Event
-grid s = container G.Grid [] cs
+grid :: State -> Images  -> Widget Event
+grid s i = container G.Grid [] cs
  where
-  cs' = [c ((1, 1), Nothing), c ((1, 1), Nothing)]
-  cs :: [GridChild Event]
-  cs = map c $ toList $ board s
+  cs :: Vector (GridChild Event)
+  cs = fromList $ map c $ toList $ board s
   c :: (Pos, Maybe Disk) -> GridChild Event
   c ((y, x), _) = GridChild
     defaultGridChildProperties { leftAttach = fromIntegral x
@@ -63,8 +69,12 @@ initState = State { activeP = p0
 
 
 main :: IO ()
-main = void $ run App { view         = view'
-                      , update       = update'
-                      , inputs       = []
-                      , initialState = initState
-                      }
+main = do 
+  i <-  G.imageNewFromFile "blank.png"
+  iw <- G.imageNewFromFile "white.png"
+  ib <- G.imageNewFromFile "black.png"
+  void $ run App { view         = view' Images{i, iw, ib}
+                 , update       = update'
+                 , inputs       = []
+                 , initialState = initState
+                 }
