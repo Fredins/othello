@@ -62,8 +62,13 @@ updateBoard p b = M.insert p v' b
     (Just White) -> Just Black
 
 -- | TODO
-flip :: Pos -> Board -> Player -> Board
-flip = undefined
+flipAll :: [Pos] -> Board -> Player -> Board
+flipAll [] b _            = b 
+flipAll ps b (Player d _) = flip ps b
+ where flip [] b     = b
+       flip (p:ps) b = flip ps (M.insert p (Just d) b) 
+  
+
 
 -- | all empty postions
 emptyPositions :: Board -> [Pos]
