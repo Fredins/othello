@@ -1,13 +1,35 @@
 module Othello where
 
+import           Data.List                      ( sort )
 import           Data.List.Extra                ( chunksOf )
 import qualified Data.Map                      as M
                                          hiding ( drop
                                                 , map
                                                 )
 import           Data.Maybe
-import           Text.Pretty.Simple.Internal.Printer
-                                                ( CheckColorTty(CheckColorTty) )
+import           Debug.Trace                    ( trace )
+import           Test.QuickCheck
+
+{-
+startingBoard
+showBoard
+printBoard
+positions
+updateBoard: Pos ->  Color -> Board -> Board
+      - adds new disc with the right color
+      - calls flip: flips discs
+flip: Pos -> Board -> Player -> Board
+      - 
+findFlips: 
+possibleMoves
+emptyPositions
+validFlip: Pos -> Board -> Player -> [Pos]
+      - check if position is empty
+      - check if positions around position is opposite color
+      - 
+gameOver
+-}
+
 
 type Board = M.Map Pos (Maybe Disk)
 type Pos = (Int, Int)
@@ -25,6 +47,112 @@ startingBoard =
   where blank = M.fromList [ (p, Nothing) | p <- positions ]
 
 
+
+positions :: [Pos]
+positions = [ (y, x) | y <- [0 .. 7], x <- [0 .. 7] ]
+
+-- | TODO
+updateBoard :: Pos -> Board -> Board
+updateBoard p b = M.insert p v' b
+ where
+  v  = fromJust $ M.lookup p b
+  v' = case v of
+    Nothing      -> Nothing
+    (Just Black) -> Just White
+    (Just White) -> Just Black
+
+-- | TODO
+flip :: Pos -> Board -> Player -> Board
+flip = undefined
+
+-- | all empty postions
+emptyPositions :: Board -> [Pos]
+emptyPositions = M.keys . M.filter isNothing
+
+-- | returns all the possible moves together with the pieces that would be flipped
+possibleMoves :: Player -> Board -> [(Pos, [Pos])]
+possibleMoves pl b =
+  filter f . map (\p -> (p, flipped pl b p)) $ emptyPositions b
+ where
+  f (_, []) = False
+  f _       = True
+
+
+-- | all directions
+data Dir = North
+         | NorthEast
+         | East
+         | SouthEast
+         | South
+         | SouthWest
+         | West
+         | NorthWest deriving (Enum, Show)
+
+
+-- | change position depending on direction (in grid)
+step :: Dir -> Pos -> Pos
+step d (y, x) = case d of
+  North     -> (y - 1, x)
+  NorthEast -> (y - 1, x + 1)
+  East      -> (y, x + 1)
+  SouthEast -> (y + 1, x + 1)
+  South     -> (y + 1, x)
+  SouthWest -> (y + 1, x - 1)
+  West      -> (y, x - 1)
+  NorthWest -> (y - 1, x - 1)
+
+-- | disks flipped in direction
+flippedDir :: Disk -> Pos -> Board -> Dir -> [Pos]
+flippedDir d0 p0 b dir = check p0 []
+ where
+  check :: Pos -> [Pos] -> [Pos]
+  check p ps | d' == Just Nothing || isNothing d' = []
+             |                 -- blank or out
+               fromJust d' == Just d0             = ps
+             |                 -- same disk
+               otherwise                          = check p' (p' : ps) -- not same disk
+   where
+    d' = M.lookup p' b
+    d  = M.lookup p b
+    p' = step dir p
+
+-- | all disks flipped
+flipped :: Player -> Board -> Pos -> [Pos]
+flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
+
+-- | check if position of move is valid
+isValid :: Player -> Board -> Pos -> Bool
+isValid pl b p = not . null $ flipped pl b p
+
+-- TODO
+gameOver = undefined
+
+-- TESTS ######################################################################
+
+-- | possibleMoves correct for startingBoard 
+prop_possibleMoves_startingBoard :: Bool
+prop_possibleMoves_startingBoard = sort actual == sort expected
+ where
+  expected =
+    [ ((3, 2), [(3, 3)])
+    , ((2, 3), [(3, 3)])
+    , ((4, 5), [(4, 4)])
+    , ((5, 4), [(4, 4)])
+    ]
+  actual = possibleMoves (Player White 0) startingBoard
+
+-- PRINTING ####################################################################
+
+showPossibleMoves :: Player -> Board -> String 
+showPossibleMoves pl b = concatMap (\x -> concat x ++ "\n") . chunksOf 8 . map toS $ M.toList b
+  where pm = map fst $ possibleMoves pl b
+        toS (p, Just x) | x == Black = " B "
+                        | otherwise  = " W "
+        toS (p , Nothing) | p `elem` pm = " * "
+                          | otherwise   = " _ "
+printPossibleMoves :: Player -> Board -> IO()
+printPossibleMoves pl = putStr . showPossibleMoves pl
+
 showBoard :: Board -> String
 showBoard =
   concatMap (\x -> concat x ++ "\n") . chunksOf 8 . map (toS . snd) . M.toList
@@ -35,73 +163,5 @@ showBoard =
 
 printBoard :: Board -> IO ()
 printBoard = putStr . showBoard
-
-positions :: [Pos]
-positions = [ (y, x) | y <- [0 .. 7], x <- [0 .. 7] ]
-
-updateBoard :: Pos -> Board -> Board
-updateBoard p b = M.insert p v' b
- where
-  v  = fromJust $ M.lookup p b
-  v' = case v of
-    Nothing      -> Nothing
-    (Just Black) -> Just White
-    (Just White) -> Just Black
-
-flip :: Pos -> Board -> Player -> Board
-flip = undefined
-
-emptyPositions :: Board -> [Pos]
-emptyPositions = M.keys . M.filter isNothing
-
-possibleMoves :: Player -> Board -> [(Pos, [Pos])]
-possibleMoves pl b = undefined
-  where fp = (map . filter) _ $x 2==0, x/=0 ]  emptyPositions b
-        valid p  | not $ null ps = (p, ps)
-                 | otherwise     = undefined
-          where ps = flippedPositions pl b p
-
-
-data Dir = North
-         | NorthEast
-         | East
-         | SouthEast
-         | South
-         | SouthWest
-         | West
-         | NorthWest
-
-step :: Dir -> Pos -> Pos
-step d (y, x) = case d of
-  North     -> (y + 1, x)
-  NorthEast -> (y + 1, x + 1)
-  East      -> (y, x + 1)
-  SouthEast -> (y - 1, x + 1)
-  South     -> (y - 1, x)
-  SouthWest -> (y - 1, x - 1)
-  West      -> (y, x - 1)
-  NorthWest -> (y + 1, x - 1)
-
-
-lane :: Disk -> Pos -> Board -> Dir -> [Pos]
-lane d0 p0 b dir = lane' p0 []
- where
-  lane' :: Pos -> [Pos] -> [Pos]
-  lane' p ps
-    | isNothing d'           = []                   -- return empty list if out of bounds
-    | fromJust d' == Just d0 = ps                   -- return inbetween positions if same Disk color
-    | otherwise              = lane' p (p' : ps)    -- continue searching if not same disk color   
-   where
-    d' = M.lookup p' b
-    d  = M.lookup p b
-    p'    = step dir p
-
-flippedPositions  :: Player -> Board -> Pos -> [Pos]
-flippedPositions (Player d _) b p = concat [lane d p b dir | dir <- [North ..]]
-
-isValid :: Player -> Board -> Pos -> Bool
-isValid = not . null . flippedPositions 
-
-gameOver = undefined
 
 
