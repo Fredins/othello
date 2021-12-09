@@ -82,6 +82,18 @@ possibleMoves pl b =
   f (_, []) = False
   f _       = True
 
+-- | disks flipped in direction
+flippedDir :: Disk -> Pos -> Board -> Dir -> [Pos]
+flippedDir currentDisk p0 b dir = getPositions p0 []
+ where
+  getPositions :: Pos -> [Pos] -> [Pos]
+  getPositions p ps 
+        | nextDisk == Just Nothing || isNothing nextDisk = [] -- next position has no disk
+        | fromJust nextDisk == Just currentDisk          = ps -- next position is same color as start disk
+        | otherwise                                      = getPositions nextPos (nextPos : ps) -- next position is other color                                                                 
+   where
+    nextDisk = M.lookup nextPos b
+    nextPos = step dir p
 
 -- | all directions
 data Dir = North
@@ -106,19 +118,6 @@ step d (y, x) = case d of
   West      -> (y, x - 1)
   NorthWest -> (y - 1, x - 1)
 
--- | disks flipped in direction
-flippedDir :: Disk -> Pos -> Board -> Dir -> [Pos]
-flippedDir currentDisk p0 b dir = getPositions p0 []
- where
-  getPositions :: Pos -> [Pos] -> [Pos]
-  getPositions p ps 
-        | nextDisk == Just Nothing || isNothing nextDisk = [] -- next position has no disk
-        | fromJust nextDisk == Just currentDisk          = ps -- next position is same color as start disk
-        | otherwise                                      = getPositions nextPos (nextPos : ps) -- next position is other color                                                                 
-   where
-    nextDisk = M.lookup nextPos b
-    nextPos = step dir p
-
 -- | all disks flipped
 flipped :: Player -> Board -> Pos -> [Pos]
 flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
@@ -127,8 +126,30 @@ flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
 isValid :: Player -> Board -> Pos -> Bool
 isValid pl b p = not . null $ flipped pl b p
 
--- TODO
-gameOver = undefined
+-- 
+gameOver :: Player -> Player -> Board -> Bool
+gameOver p1 p2 b = noPlays || fullBoard b
+      where noPlays = (not $ canPlay p1 b) && (not $ canPlay p2 b)
+
+-- Returns true if all positions on board has a disk
+fullBoard :: Board -> Bool
+fullBoard b = (bPoints + wPoints) == 64
+      where (bPoints,wPoints) = updatePoints b
+
+-- Returns true if player can make a move on the board 
+canPlay :: Player -> Board -> Bool
+canPlay p b = not $ null $ possibleMoves p b
+
+-- | returns a tuple of the number of black and white disks on the board
+updatePoints :: Board -> (Int,Int)
+updatePoints b = (countColor Black b, countColor White b)
+
+-- | returns the number of occurences of the given disk in the board
+countColor :: Disk -> Board -> Int 
+countColor d = length . filter equalsDisk . map snd . M.toList
+      where equalsDisk d' | isNothing d' = False
+                          | d' == Just d = True
+                          | otherwise    = False
 
 -- TESTS ######################################################################
 
