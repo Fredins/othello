@@ -108,18 +108,16 @@ step d (y, x) = case d of
 
 -- | disks flipped in direction
 flippedDir :: Disk -> Pos -> Board -> Dir -> [Pos]
-flippedDir d0 p0 b dir = check p0 []
+flippedDir currentDisk p0 b dir = getPositions p0 []
  where
-  check :: Pos -> [Pos] -> [Pos]
-  check p ps | d' == Just Nothing || isNothing d' = []
-             |                 -- blank or out
-               fromJust d' == Just d0             = ps
-             |                 -- same disk
-               otherwise                          = check p' (p' : ps) -- not same disk
+  getPositions :: Pos -> [Pos] -> [Pos]
+  getPositions p ps 
+        | nextDisk == Just Nothing || isNothing nextDisk = [] -- next position has no disk
+        | fromJust nextDisk == Just currentDisk          = ps -- next position is same color as start disk
+        | otherwise                                      = getPositions nextPos (nextPos : ps) -- next position is other color                                                                 
    where
-    d' = M.lookup p' b
-    d  = M.lookup p b
-    p' = step dir p
+    nextDisk = M.lookup nextPos b
+    nextPos = step dir p
 
 -- | all disks flipped
 flipped :: Player -> Board -> Pos -> [Pos]
@@ -168,5 +166,3 @@ showBoard =
 
 printBoard :: Board -> IO ()
 printBoard = putStr . showBoard
-
-
