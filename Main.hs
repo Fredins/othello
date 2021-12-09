@@ -4,19 +4,12 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 
-{-
--- {-# LANGUAGE KindSignatures #-}
--- {-# LANGUAGE PolyKinds      #-}
--- {-# LANGUAGE RankNTypes     #-}
-class IxMonadIO (m :: k -> k -> * -> *) where
-  iliftIO :: forall (i :: k) a. IO a -> m i i a
--}
-
 module Main where
 import           Control.Monad
 import qualified Data.Map                      as M
 import           Data.Maybe
 import           Data.Text                      ( pack )
+import           Data.Tuple.Extra               ( both )
 import           Data.Vector                    ( Vector
                                                 , fromList
                                                 )
@@ -36,11 +29,16 @@ data Resources = Resources
   , black :: Images
   }
 
+data Screen = StartMenu
+          | Play
+          | GameOver
+
 data State = State
   { activeP   :: Player
-  , player0   :: Player
-  , player1   :: Player
+  , playerB   :: Player
+  , playerW   :: Player
   , board     :: Board
+  , screen    :: Screen
   , resources :: Resources
   }
 
@@ -51,20 +49,26 @@ data Event = Close
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
   Close              -> Exit
-  DiskClicked (p, d) -> Transition s{activeP = activeP', board = board'} (return Nothing)
-    where ps = flipped activeP board p
-          board' | null ps   = trace ("wrong position! you are player " ++ show activeP) board
-                 | otherwise = flipAll (p:ps) board activeP 
-          activeP' | null ps            = activeP 
-                   | activeP == player0 = player1
-                   | otherwise          = player0
 
+  DiskClicked (p, d) -> Transition
+    (if null ps || isJust d
+      then s
+      else s { activeP = aP
+             , playerB = pB
+             , playerW = pW
+             , board   = b
+             , screen  = if gameOver pB pW b then GameOver else Play
+             }
+    )
+    $ return Nothing
+   where
+    ps       = flipped activeP board p
+    b        = flipAll (p : ps) board activeP
+    (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
+    aP | activeP == playerB && canPlay pW b && not (null ps) = pW
+       | otherwise = pB
 
- -- Transition s (return Nothing)
--- update board and update images (via createImages)
-
-
-
+-- TODO add case screen, and add points + whose turn + buttons (restart, exit, show moves)
 view' :: State -> AppView G.Window Event
 view' s = bin G.Window [#title := "Othello", on #destroy Close] $ grid s
 
@@ -72,14 +76,11 @@ grid :: State -> Widget Event
 grid s@State {..} = container G.Grid [] cs
  where
   cs = fromList $ map c $ M.toList board
-  c ((y, x), d) = GridChild
+  c pd@((y, x), d) = GridChild
     defaultGridChildProperties { leftAttach = fromIntegral x
                                , topAttach  = fromIntegral y
                                }
-    (widget
-      G.Button
-      [#image := image ((y, x), d), on #clicked $ DiskClicked ((y, x), d)]
-    )
+    (widget G.Button [#image := image pd, on #clicked $ DiskClicked pd])
   image :: (Pos, Maybe Disk) -> G.Image
   image (p, d) = fromJust $ M.lookup p $ case d of
     (Just White) -> white resources
@@ -88,7 +89,7 @@ grid s@State {..} = container G.Grid [] cs
 
 
 
-
+-- TODO add highlight res
 createResources :: IO Resources
 createResources = do
   e <- mapM (f "gui/empty.png") positions
@@ -106,23 +107,24 @@ createResources = do
 initState :: IO State
 initState = do
   res <- createResources
-  
-  return State { activeP   = p0
-               , player0   = p0
-               , player1   = p1
+
+  return State { activeP   = pB
+               , playerB   = pB
+               , playerW   = pW
                , board     = startingBoard
+               , screen    = StartMenu
                , resources = res
                }
  where
-  p0 = Player White 0
-  p1 = Player Black 0
+  pB = Player Black 0
+  pW = Player White 0
 
 
 main :: IO ()
 main = do
   G.init Nothing
   state <- initState
-
+  -- TODO maybe async?
   void $ run App { view         = view'
                  , update       = update'
                  , inputs       = []
