@@ -8,7 +8,7 @@ module Main where
 import           Control.Monad
 import qualified Data.Map                      as M
 import           Data.Maybe
-import           Data.Text                      ( pack )
+import           Data.Text                      ( pack, Text )
 import           Data.Tuple.Extra               ( both )
 import           Data.Vector                    ( Vector
                                                 , fromList
@@ -21,18 +21,9 @@ import           GI.Gtk.Declarative.Container.Grid
 import           Othello
 
 
-type Images = M.Map Pos G.Image
-
-data Resources = Resources
-  { empty     :: Images
-  , white     :: Images
-  , black     :: Images
-  , highlight :: Images
-  }
-
 data Screen = StartMenu
-          | Play
-          | GameOver
+            | Play
+            | GameOver
 
 data State = State
   { activeP   :: Player
@@ -40,9 +31,7 @@ data State = State
   , playerW   :: Player
   , board     :: Board
   , screen    :: Screen
-  , resources :: Resources
   }
-
 
 data Event = Close
            | DiskClicked (Pos, Maybe Disk)
@@ -72,7 +61,6 @@ update' s@State {..} e = case e of
     aP | activeP == playerB && canPlay pW b && not (null ps) = pW
        | otherwise = pB
 
--- TODO add case screen, and add points + whose turn + buttons (restart, exit, show moves)
 view' :: State -> AppView G.Window Event
 view' s@State {..} =
   bin G.Window [#title := "Othello", on #destroy Close] $ case screen of
@@ -118,58 +106,24 @@ grid s@State {..} = container G.Grid [] cs
     defaultGridChildProperties { leftAttach = fromIntegral x
                                , topAttach  = fromIntegral y
                                }
-    (widget G.Button [#image := image pd, on #clicked $ DiskClicked pd])
-  image :: (Pos, Maybe Disk) -> G.Image
-  image (p, d) = fromJust $ M.lookup p $ case d of
-    (Just White) -> white resources
-    (Just Black) -> black resources
-    Nothing      -> if p `elem` (fst <$> possibleMoves activeP board)
-      then highlight resources
-      else empty resources
+    (bin G.Button [on #clicked $ DiskClicked pd] $ widget G.Image [#file := path pd])
+
+  path :: (Pos, Maybe Disk) -> Text
+  path (_, Just White) = "gui/white.png"
+  path (_, Just Black) = "gui/black.png"
+  path (p, _) | p `elem` (fst <$> possibleMoves activeP board) = "gui/highlight.png"
+              | otherwise                                      = "gui/empty.png"
 
 
-
--- TODO add highlight res
-createResources :: IO Resources
-createResources = do
-  e <- mapM (f "gui/empty.png") positions
-  w <- mapM (f "gui/white.png") positions
-  b <- mapM (f "gui/black.png") positions
-  h <- mapM (f "gui/highlight.png") positions
-  return Resources { empty     = M.fromList e
-                   , white     = M.fromList w
-                   , black     = M.fromList b
-                   , highlight = M.fromList h
-                   }
- where
-  f :: String -> Pos -> IO (Pos, G.Image)
-  f s p = (p, ) <$> G.imageNewFromFile s
-
-
-initState :: IO State
-initState = do
-  res <- createResources
-
-  return State { activeP   = pB
-               , playerB   = pB
-               , playerW   = pW
-               , board     = startingBoard
-               , screen    = StartMenu
-               , resources = res
-               }
- where
-  pB = Player Black 0
-  pW = Player White 0
-
-
+-- TODO add css support
 main :: IO ()
-main = do
-  G.init Nothing
-  state <- initState
-  -- TODO maybe async?
-  void $ run App { view         = view'
-                 , update       = update'
-                 , inputs       = []
-                 , initialState = state
-                 }
-  G.main
+main = void $ run App { view    = view'
+                      , update       = update'
+                      , inputs       = []
+                      , initialState = State { activeP   = pB
+                                             , playerB   = pB
+                                             , playerW   = pW
+                                             , board     = startingBoard
+                                             , screen    = StartMenu } }
+  where pB = Player Black 0
+        pW = Player White 0
