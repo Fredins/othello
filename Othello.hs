@@ -126,7 +126,7 @@ flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
 isValid :: Player -> Board -> Pos -> Bool
 isValid pl b p = not . null $ flipped pl b p
 
--- 
+-- game is over when whole board is fileld with disks or none of the players can play
 gameOver :: Player -> Player -> Board -> Bool
 gameOver p1 p2 b = noPlays || fullBoard b
       where noPlays = (not $ canPlay p1 b) && (not $ canPlay p2 b)
@@ -137,7 +137,6 @@ fullBoard b = (bPoints + wPoints) == 64
       where (bPoints,wPoints) = updatePoints b
 
 -- Returns true if player can make a move on the board 
--- TODO max disks/points per player == 32
 canPlay :: Player -> Board -> Bool
 canPlay p b = not $ null $ possibleMoves p b
 
@@ -148,9 +147,7 @@ updatePoints b = (countColor Black b, countColor White b)
 -- | returns the number of occurences of the given disk in the board
 countColor :: Disk -> Board -> Int 
 countColor d = length . filter equalsDisk . map snd . M.toList
-      where equalsDisk d' | isNothing d' = False -- TODO denna är onödig (== Just d) räcker
-                          | d' == Just d = True   
-                          | otherwise    = False
+      where equalsDisk d'= d' == Just d
 
 -- TESTS ######################################################################
 -- TODO add props
