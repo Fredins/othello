@@ -38,6 +38,13 @@ data Player = Player Disk Points
   deriving (Show, Eq)
 type Points = Int
 
+
+points :: Player -> Int
+points (Player _ x) = x
+
+disk :: Player -> Disk
+disk (Player x _) =  x
+
 startingBoard :: Board
 startingBoard =
   M.insert (4, 4) (Just Black)

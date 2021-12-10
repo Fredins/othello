@@ -24,9 +24,10 @@ import           Othello
 type Images = M.Map Pos G.Image
 
 data Resources = Resources
-  { empty :: Images
-  , white :: Images
-  , black :: Images
+  { empty     :: Images
+  , white     :: Images
+  , black     :: Images
+  , highlight :: Images
   }
 
 data Screen = StartMenu
@@ -45,22 +46,25 @@ data State = State
 
 data Event = Close
            | DiskClicked (Pos, Maybe Disk)
+           | StartPvP
 
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
-  Close              -> Exit
+  Close    -> Exit
+  StartPvP -> Transition s { screen = Play } $ return Nothing
 
-  DiskClicked (p, d) -> Transition
-    (if null ps || isJust d
-      then s
-      else s { activeP = aP
-             , playerB = pB
-             , playerW = pW
-             , board   = b
-             , screen  = if gameOver pB pW b then GameOver else Play
-             }
-    )
-    $ return Nothing
+  DiskClicked (p, d) ->
+    Transition
+        (if null ps || isJust d
+          then s
+          else s { activeP = aP
+                 , playerB = pB
+                 , playerW = pW
+                 , board   = b
+                 , screen  = if gameOver pB pW b then GameOver else Play
+                 }
+        )
+      $ return Nothing
    where
     ps       = flipped activeP board p
     b        = flipAll (p : ps) board activeP
@@ -68,9 +72,43 @@ update' s@State {..} e = case e of
     aP | activeP == playerB && canPlay pW b && not (null ps) = pW
        | otherwise = pB
 
--- TODO add case screen, and add points + whose turn + buttons (restart, exit, show moves)
+-- TODO add case screen, and add points + whose turn + buttons (restart, exit, show moves)
 view' :: State -> AppView G.Window Event
-view' s = bin G.Window [#title := "Othello", on #destroy Close] $ grid s
+view' s@State {..} =
+  bin G.Window [#title := "Othello", on #destroy Close] $ case screen of
+    StartMenu ->
+      widget G.Button [#label := "Player vs Player", on #clicked StartPvP]
+
+    Play -> container
+      G.Box
+      [#orientation := G.OrientationVertical]
+      [ BoxChild defaultBoxChildProperties $ container
+        G.Box
+        [#orientation := G.OrientationHorizontal]
+        [ BoxChild defaultBoxChildProperties { padding = 5 }
+                   (widget G.Image [#file := "gui/white1.png"])
+        , BoxChild
+          defaultBoxChildProperties { padding = 5 }
+          (widget G.Label [#label := pack (show (points playerW) ++ "x")])
+        , BoxChild
+          defaultBoxChildProperties { padding = 50 }
+          (widget G.Label [#label := pack (show (disk activeP) ++ "'s turn")])
+        , BoxChild defaultBoxChildProperties { padding = 5 }
+                   (widget G.Image [#file := "gui/black1.png"])
+        , BoxChild
+          defaultBoxChildProperties { padding = 5 }
+          (widget G.Label [#label := pack (show (points playerB) ++ "x")])
+        ]
+      , BoxChild defaultBoxChildProperties $ grid s
+      ]
+
+    GameOver -> widget G.Label [#label := pack winner]
+ where
+  (pb, pw) = updatePoints board
+  winner | pb > pw   = "Black wins with " ++ show pb ++ " vs " ++ show pw ++ " points"
+         | pw > pb   = "White wins with " ++ show pw ++ " vs " ++ show pb ++ " points"
+         | otherwise = "Draw!"
+
 
 grid :: State -> Widget Event
 grid s@State {..} = container G.Grid [] cs
@@ -85,19 +123,23 @@ grid s@State {..} = container G.Grid [] cs
   image (p, d) = fromJust $ M.lookup p $ case d of
     (Just White) -> white resources
     (Just Black) -> black resources
-    Nothing      -> empty resources
+    Nothing      -> if p `elem` (fst <$> possibleMoves activeP board)
+      then highlight resources
+      else empty resources
 
 
 
--- TODO add highlight res
+-- TODO add highlight res
 createResources :: IO Resources
 createResources = do
   e <- mapM (f "gui/empty.png") positions
   w <- mapM (f "gui/white.png") positions
   b <- mapM (f "gui/black.png") positions
-  return Resources { empty = M.fromList e
-                   , white = M.fromList w
-                   , black = M.fromList b
+  h <- mapM (f "gui/highlight.png") positions
+  return Resources { empty     = M.fromList e
+                   , white     = M.fromList w
+                   , black     = M.fromList b
+                   , highlight = M.fromList h
                    }
  where
   f :: String -> Pos -> IO (Pos, G.Image)
@@ -124,7 +166,7 @@ main :: IO ()
 main = do
   G.init Nothing
   state <- initState
-  -- TODO maybe async?
+  -- TODO maybe async?
   void $ run App { view         = view'
                  , update       = update'
                  , inputs       = []
