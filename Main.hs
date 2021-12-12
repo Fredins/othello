@@ -31,22 +31,27 @@ data Screen = StartMenu
             | Play
             | GameOver
 
+
+data Mode = Pvp | Pve deriving Eq
+
 data State = State
   { activeP :: Player
   , playerB :: Player
   , playerW :: Player
   , board   :: Board
   , screen  :: Screen
+  , mode    :: Mode
   }
 
 data Event = Close
            | DiskClicked (Pos, Maybe Disk)
-           | StartPvP
+           | Start Mode
+           | ComputerMove
 
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
   Close    -> Exit
-  StartPvP -> Transition s { screen = Play } $ return Nothing
+  Start m -> Transition s { screen = Play, mode = m } $ return Nothing
 
   DiskClicked (p, d) ->
     Transition
@@ -59,7 +64,7 @@ update' s@State {..} e = case e of
                  , screen  = if gameOver pB pW b then GameOver else Play
                  }
         )
-      $ return Nothing
+      $ if mode == Pve then return (Just ComputerMove) else return Nothing
    where
     ps       = flipped activeP board p
     b        = flipAll (p : ps) board activeP
@@ -67,15 +72,13 @@ update' s@State {..} e = case e of
     aP | activeP == playerB && canPlay pW b && not (null ps) = pW
        | otherwise = pB
 
+  ComputerMove -> undefined
+
 view' :: State -> AppView G.Window Event
 view' s@State {..} =
   bin G.Window [#title := "Othello", on #destroy Close] $ case screen of
-    StartMenu -> widget
-      G.Button
-      [ classes ["start_menu"]
-      , #label := "Player vs Player"
-      , on #clicked StartPvP
-      ]
+
+    StartMenu -> startMenu
 
     Play -> container
       G.Box
@@ -92,26 +95,56 @@ view' s@State {..} =
     | pw > pb = "White wins with " ++ show pw ++ " vs " ++ show pb ++ " points"
     | otherwise = "Draw!"
 
-header :: State -> Widget Event
-header State {..} = container
+startMenu :: Widget Event
+startMenu = container
   G.Box
-  [classes ["header"], #orientation := G.OrientationHorizontal, #halign := G.AlignCenter]
-  [ container G.Box
-    [#orientation := G.OrientationHorizontal]
-    [ BoxChild defaultBoxChildProperties { padding = 10 } $ widget G.Image [#file := "gui/white1.png"]
-    , widget G.Label [#label := pack (show $ points playerW)]
-    ]
-  , BoxChild defaultBoxChildProperties { padding = 100 } $ widget G.Label [classes ["header_center"], #label := pack (show (disk activeP) ++ "'s turn")]
-  , container
-    G.Box
-    [#orientation := G.OrientationHorizontal]
-    [ BoxChild defaultBoxChildProperties { padding = 10 } $ widget G.Image [#file := "gui/black1.png"]
-    , widget G.Label [#label := pack (show $ points playerB)]
-    ]
+  [ classes ["start_menu"]
+  , #halign := G.AlignCenter
+  , #valign := G.AlignCenter
+  , #orientation := G.OrientationVertical
+  ]
+  [ BoxChild defaultBoxChildProperties { padding = 50 } $ widget G.Label [classes ["h1"], #label := "Othello"]
+  , BoxChild defaultBoxChildProperties { padding = 2 } $ widget
+      G.Button
+      [ #label := "Player vs Player"
+      , on #clicked $ Start Pvp
+      ]
+  , BoxChild defaultBoxChildProperties { padding = 2 } $ widget
+      G.Button
+      [ #label := "Player vs Computer"
+      , on #clicked $ Start Pve
+      ]
+
   ]
 
 
-
+header :: State -> Widget Event
+header State {..} = container
+  G.Box
+  [ classes ["header"]
+  , #orientation := G.OrientationHorizontal
+  , #halign := G.AlignCenter
+  ]
+  [ container
+    G.Box
+    [#orientation := G.OrientationHorizontal]
+    [ BoxChild defaultBoxChildProperties { padding = 10 }
+      $ widget G.Image [#file := "gui/white1.png"]
+    , widget G.Label [#label := pack (show $ points playerW)]
+    ]
+  , BoxChild defaultBoxChildProperties { padding = 100 } $ widget
+    G.Label
+    [ classes ["header_center"]
+    , #label := pack (show (disk activeP) ++ "'s turn")
+    ]
+  , container
+    G.Box
+    [#orientation := G.OrientationHorizontal]
+    [ BoxChild defaultBoxChildProperties { padding = 10 }
+      $ widget G.Image [#file := "gui/black1.png"]
+    , widget G.Label [#label := pack (show $ points playerB)]
+    ]
+  ]
 
 grid :: State -> Widget Event
 grid s@State {..} = container G.Grid [classes ["grid"]] cs
@@ -160,6 +193,7 @@ main = do
                            , playerW = pW
                            , board   = startingBoard
                            , screen  = StartMenu
+                           , mode    = error "No mode selected"
                            }
     }
   pB = Player Black 0

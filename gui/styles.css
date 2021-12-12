@@ -1,5 +1,20 @@
+* {
+ background: #303030;
+}
+
+button, label {
+ background: #f4f4f4;
+}
+
 .start_menu {
+  background: #303030;
   font-size: 20px;
+}
+
+.h1 {
+  background: #303030;
+  font-size: 40px;
+  color: #f9f9fa;
 }
 
 .play {
@@ -11,6 +26,10 @@
  color: #f9f9fa;
  padding-top: 10px;
  padding-bottom: 10px;
+}
+
+.header label {
+ background: #303030;
 }
 
 .grid button {
