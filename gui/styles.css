@@ -1,0 +1,21 @@
+.start_menu {
+  font-size: 20px;
+}
+
+.play {
+ background: #303030;
+}
+
+.header {
+ font-size: 20px; 
+ color: #f9f9fa;
+ padding-top: 10px;
+ padding-bottom: 10px;
+}
+
+.grid button {
+ margin: 0;
+ padding: 2px;
+ border-width: 0;
+ border-radius: 0;
+}
