@@ -32,7 +32,7 @@ data Screen = StartMenu
             | GameOver
 
 
-data Mode = Pvp | Pve deriving Eq
+data Mode = Pvp | Pve deriving (Eq, Show)
 
 data State = State
   { activeP :: Player
@@ -48,14 +48,18 @@ data Event = Close
            | Start Mode
            | ComputerMove
 
+
+-- makeMove :: Pos -> Disk -> Transition State
+--makeMove p d = 
+
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
-  Close    -> Exit
+  Close   -> Exit
   Start m -> Transition s { screen = Play, mode = m } $ return Nothing
 
   DiskClicked (p, d) ->
     Transition
-        (if null ps || isJust d
+        (if  null ps || isJust d
           then s
           else s { activeP = aP
                  , playerB = pB
@@ -72,7 +76,28 @@ update' s@State {..} e = case e of
     aP | activeP == playerB && canPlay pW b && not (null ps) = pW
        | otherwise = pB
 
-  ComputerMove -> undefined
+  ComputerMove -> 
+    Transition
+        (if null ps || isJust d
+          then s
+          else s { activeP = aP
+                 , playerB = pB
+                 , playerW = pW
+                 , board   = b
+                 , screen  = if gameOver pB pW b then GameOver else Play
+                 }
+        )
+      $ return Nothing
+   where
+    d        = fromJust $ M.lookup p board
+    p        = getPositionAI board activeP
+    ps       = flipped playerW board p
+    b        = flipAll (p : ps) board activeP
+    (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
+    aP | activeP == playerB && canPlay pW b && not (null ps) = pW
+       | otherwise = pB
+
+    
 
 view' :: State -> AppView G.Window Event
 view' s@State {..} =
@@ -80,7 +105,7 @@ view' s@State {..} =
 
     StartMenu -> startMenu
 
-    Play -> container
+    Play      -> container
       G.Box
       [classes ["play"], #orientation := G.OrientationVertical]
       [ BoxChild defaultBoxChildProperties $ header s
@@ -103,18 +128,12 @@ startMenu = container
   , #valign := G.AlignCenter
   , #orientation := G.OrientationVertical
   ]
-  [ BoxChild defaultBoxChildProperties { padding = 50 } $ widget G.Label [classes ["h1"], #label := "Othello"]
-  , BoxChild defaultBoxChildProperties { padding = 2 } $ widget
-      G.Button
-      [ #label := "Player vs Player"
-      , on #clicked $ Start Pvp
-      ]
-  , BoxChild defaultBoxChildProperties { padding = 2 } $ widget
-      G.Button
-      [ #label := "Player vs Computer"
-      , on #clicked $ Start Pve
-      ]
-
+  [ BoxChild defaultBoxChildProperties { padding = 50 }
+    $ widget G.Label [classes ["h1"], #label := "Othello"]
+  , BoxChild defaultBoxChildProperties { padding = 2 }
+    $ widget G.Button [#label := "Player vs Player", on #clicked $ Start Pvp]
+  , BoxChild defaultBoxChildProperties { padding = 2 }
+    $ widget G.Button [#label := "Player vs Computer", on #clicked $ Start Pve]
   ]
 
 

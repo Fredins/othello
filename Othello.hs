@@ -52,6 +52,9 @@ startingBoard =
     $ M.insert (3, 3) (Just Black) blank
   where blank = M.fromList [ (p, Nothing) | p <- positions ]
 
+testBoard :: Board
+testBoard = M.fromList [((0,0),Nothing),((0,1),Nothing),((0,2),Nothing),((0,3),Nothing),((0,4),Nothing),((0,5),Nothing),((0,6),Nothing),((0,7),Nothing),((1,0),Nothing),((1,1),Nothing),((1,2),Nothing),((1,3),Nothing),((1,4),Nothing),((1,5),Nothing),((1,6),Nothing),((1,7),Nothing),((2,0),Nothing),((2,1),Nothing),((2,2),Nothing),((2,3),Nothing),((2,4),Nothing),((2,5),Nothing),((2,6),Nothing),((2,7),Nothing),((3,0),Nothing),((3,1),Nothing),((3,2),Nothing),((3,3),Just Black),((3,4),Just Black),((3,5),Just Black),((3,6),Nothing),((3,7),Nothing),((4,0),Nothing),((4,1),Nothing),((4,2),Nothing),((4,3),Just White),((4,4),Just Black),((4,5),Nothing),((4,6),Nothing),((4,7),Nothing),((5,0),Nothing),((5,1),Nothing),((5,2),Nothing),((5,3),Nothing),((5,4),Nothing),((5,5),Nothing),((5,6),Nothing),((5,7),Nothing),((6,0),Nothing),((6,1),Nothing),((6,2),Nothing),((6,3),Nothing),((6,4),Nothing),((6,5),Nothing),((6,6),Nothing),((6,7),Nothing),((7,0),Nothing),((7,1),Nothing),((7,2),Nothing),((7,3),Nothing),((7,4),Nothing),((7,5),Nothing),((7,6),Nothing),((7,7),Nothing)]
+
 -- Gets the given player's disk color
 getPlayerCol :: Player -> Disk
 getPlayerCol (Player d _) = d
@@ -171,7 +174,7 @@ getPositionAI :: Board -> Player -> Pos
 getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult  
     where playerCol = getPlayerCol player
           allValidMoves = map fst (possibleMoves player b)
-          minmaxresult = map (\position -> (minimax 4 player (makeMove position player b),position)) allValidMoves
+          minmaxresult = map (\position -> (minimax 1 player (makeMove position player b),position)) allValidMoves
           -- minmaxresult returns [(minmax value, position)]
 
 
@@ -239,3 +242,4 @@ showBoard =
 
 printBoard :: Board -> IO ()
 printBoard = putStr . showBoard
+
