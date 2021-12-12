@@ -46,7 +46,9 @@ startingBoard =
     $ M.insert (3, 3) (Just Black) blank
   where blank = M.fromList [ (p, Nothing) | p <- positions ]
 
-
+-- Gets the given player's disk color
+getPlayerCol :: Player -> Disk
+getPlayerCol (Player d _) = d
 
 positions :: [Pos]
 positions = [ (y, x) | y <- [0 .. 7], x <- [0 .. 7] ]
@@ -126,7 +128,7 @@ flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
 isValid :: Player -> Board -> Pos -> Bool
 isValid pl b p = not . null $ flipped pl b p
 
--- game is over when whole board is fileld with disks or none of the players can play
+-- game is over when whole board is filled with disks or none of the players can play
 gameOver :: Player -> Player -> Board -> Bool
 gameOver p1 p2 b = noPlays || fullBoard b
       where noPlays = (not $ canPlay p1 b) && (not $ canPlay p2 b)
@@ -148,6 +150,51 @@ updatePoints b = (countColor Black b, countColor White b)
 countColor :: Disk -> Board -> Int 
 countColor d = length . filter equalsDisk . map snd . M.toList
       where equalsDisk d'= d' == Just d
+
+-- ############################# AI #############################
+
+-- Makes a move and returns the updated board, returns unchanged board if move is not valid
+makeMove :: Pos -> Player ->  Board -> Board
+makeMove pos player b = if isValid player b pos 
+                        then flipAll positions b player
+                        else b
+      where positions = pos:flipped player b pos -- the chosen position and the flipped positions
+
+-- Calculates the best move for the player using the minimax algorithm
+getPositionAI :: Board -> Player -> Pos
+getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult  
+    where playerCol = getPlayerCol player
+          allValidMoves = map fst (possibleMoves player b)
+          minmaxresult = map (\position -> (minimax 4 player (makeMove position player b),position)) allValidMoves
+          -- minmaxresult returns [(minmax value, position)]
+
+
+-- Evaluates how good a play is given the board where the play has been made 
+minimax :: Int -> Player -> Board -> Int
+minimax depth (Player disk _) board 
+    -- | gameOver (Player disk _) nextPlayer board =  -- kolla vem som vann,ge högt poäng till vinnaren (gör ny gameOver funktion som tar disk)
+    | depth <= 0 = heuristic (Player disk 0) board
+    | otherwise = if nextColor /= disk -- nästa spelare är andra spelaren
+            then - maxPlayNextColor -- MINUS gå igenom alla möjliga plays för opponent och kalla rekursivt på minimax
+            else  maxPlayNextColor -- PLUS gå igenom  alla möjliga plays för player och kalla rekursiv på minimax, välj max
+    
+    where 
+      nextColor = if canPlay (Player (opponentDisk disk) 0) board then (opponentDisk disk) else disk
+      nextPlayer = Player nextColor 0
+      nextPlayerPossibleMoves = map fst $ possibleMoves nextPlayer board 
+      maxPlayNextColor = maximum (map (\pos -> minimax (depth-1) nextPlayer (makeMove pos nextPlayer board)) nextPlayerPossibleMoves)
+
+              
+-- computes the heuristic which is the player's score substracted with the opponent's score (can be improved to be smarter)
+heuristic :: Player -> Board -> Int
+heuristic (Player d p) b | d == Black = bScore - wScore
+                         | otherwise  = wScore - bScore
+      where (bScore,wScore) = updatePoints b
+
+
+opponentDisk :: Disk -> Disk
+opponentDisk Black = White
+opponentDisk White = Black
 
 -- TESTS ######################################################################
 -- TODO add props
