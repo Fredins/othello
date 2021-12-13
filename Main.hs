@@ -3,6 +3,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 
 module Main where
 import           Control.Concurrent.Async       ( async )
@@ -56,8 +58,9 @@ update' s@State {..} e = case e of
   Start m -> Transition s { screen = Play, mode = m } $ return Nothing
 
   DiskClicked (p, d)
-    | mode == Pve -> Transition (makeMove s p d) $ return (Just ComputerMove)
+    | mode == Pve && activeP /= activeP' -> Transition (makeMove s p d) $ return (Just ComputerMove)
     | otherwise   -> Transition (makeMove s p d) $ return Nothing
+      where s'@State{ activeP = activeP' }= makeMove s p d
 
   ComputerMove -> Transition (makeMove s p d) $ return Nothing
    where
