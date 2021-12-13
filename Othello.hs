@@ -181,19 +181,22 @@ getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult
 -- Evaluates how good a play is given the board where the play has been made 
 minimax :: Int -> Player -> Board -> Int
 minimax depth (Player disk _) board 
-    -- | gameOver (Player disk _) nextPlayer board =  -- kolla vem som vann,ge högt poäng till vinnaren (gör ny gameOver funktion som tar disk)
+    | gameOver (Player disk 0) nextPlayer board = if winner (Player disk 0) board then 10000 else -10000
     | depth <= 0 = heuristic (Player disk 0) board
-    | otherwise = if nextColor /= disk -- nästa spelare är andra spelaren
-            then - maxPlayNextColor -- MINUS gå igenom alla möjliga plays för opponent och kalla rekursivt på minimax
-            else  maxPlayNextColor -- PLUS gå igenom  alla möjliga plays för player och kalla rekursiv på minimax, välj max
-    
+    | otherwise = if nextColor /= disk       
+                  then - maxPlayNextColor       -- minimizing
+                  else  maxPlayNextColor        -- maximizing 
     where 
-      nextColor = if canPlay (Player (opponentDisk disk) 0) board then (opponentDisk disk) else disk
-      nextPlayer = Player nextColor 0
-      nextPlayerPossibleMoves = map fst $ possibleMoves nextPlayer board 
-      maxPlayNextColor = maximum (map (\pos -> minimax (depth-1) nextPlayer (makeMove pos nextPlayer board)) nextPlayerPossibleMoves)
+    nextColor = if canPlay (Player (opponentDisk disk) 0) board then (opponentDisk disk) else disk
+    nextPlayer = Player nextColor 0
+    nextPlayerPossibleMoves = map fst $ possibleMoves nextPlayer board 
+    maxPlayNextColor = maximum (map (\pos -> minimax (depth-1) nextPlayer (makeMove pos nextPlayer board)) nextPlayerPossibleMoves)
 
-              
+winner :: Player -> Board -> Bool
+winner (Player disk _) board = playerPoint >= oppPoint
+      where playerPoint = countColor disk board 
+            oppPoint = countColor (opponentDisk disk) board
+
 -- computes the heuristic which is the player's score substracted with the opponent's score (can be improved to be smarter)
 heuristic :: Player -> Board -> Int
 heuristic (Player d p) b | d == Black = bScore - wScore
