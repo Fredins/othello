@@ -38,6 +38,12 @@ data Player = Player Disk Points
   deriving (Show, Eq)
 type Points = Int
 
+points :: Player -> Int
+points (Player _ x) = x
+
+disk :: Player -> Disk
+disk (Player x _) =  x
+
 startingBoard :: Board
 startingBoard =
   M.insert (4, 4) (Just Black)
@@ -46,7 +52,12 @@ startingBoard =
     $ M.insert (3, 3) (Just Black) blank
   where blank = M.fromList [ (p, Nothing) | p <- positions ]
 
+testBoard :: Board
+testBoard = M.fromList [((0,0),Nothing),((0,1),Nothing),((0,2),Nothing),((0,3),Nothing),((0,4),Nothing),((0,5),Nothing),((0,6),Nothing),((0,7),Nothing),((1,0),Nothing),((1,1),Nothing),((1,2),Nothing),((1,3),Nothing),((1,4),Nothing),((1,5),Nothing),((1,6),Nothing),((1,7),Nothing),((2,0),Nothing),((2,1),Nothing),((2,2),Nothing),((2,3),Nothing),((2,4),Nothing),((2,5),Nothing),((2,6),Nothing),((2,7),Nothing),((3,0),Nothing),((3,1),Nothing),((3,2),Nothing),((3,3),Just Black),((3,4),Just Black),((3,5),Just Black),((3,6),Nothing),((3,7),Nothing),((4,0),Nothing),((4,1),Nothing),((4,2),Nothing),((4,3),Just White),((4,4),Just Black),((4,5),Nothing),((4,6),Nothing),((4,7),Nothing),((5,0),Nothing),((5,1),Nothing),((5,2),Nothing),((5,3),Nothing),((5,4),Nothing),((5,5),Nothing),((5,6),Nothing),((5,7),Nothing),((6,0),Nothing),((6,1),Nothing),((6,2),Nothing),((6,3),Nothing),((6,4),Nothing),((6,5),Nothing),((6,6),Nothing),((6,7),Nothing),((7,0),Nothing),((7,1),Nothing),((7,2),Nothing),((7,3),Nothing),((7,4),Nothing),((7,5),Nothing),((7,6),Nothing),((7,7),Nothing)]
 
+-- Gets the given player's disk color
+getPlayerCol :: Player -> Disk
+getPlayerCol (Player d _) = d
 
 positions :: [Pos]
 positions = [ (y, x) | y <- [0 .. 7], x <- [0 .. 7] ]
@@ -126,7 +137,7 @@ flipped (Player d _) b p = concat [ flippedDir d p b dir | dir <- [North ..] ]
 isValid :: Player -> Board -> Pos -> Bool
 isValid pl b p = not . null $ flipped pl b p
 
--- game is over when whole board is fileld with disks or none of the players can play
+-- game is over when whole board is filled with disks or none of the players can play
 gameOver :: Player -> Player -> Board -> Bool
 gameOver p1 p2 b = noPlays || fullBoard b
       where noPlays = (not $ canPlay p1 b) && (not $ canPlay p2 b)
@@ -148,6 +159,54 @@ updatePoints b = (countColor Black b, countColor White b)
 countColor :: Disk -> Board -> Int 
 countColor d = length . filter equalsDisk . map snd . M.toList
       where equalsDisk d'= d' == Just d
+
+-- ############################# AI #############################
+
+-- Makes a move and returns the updated board, returns unchanged board if move is not valid
+makeMove :: Pos -> Player ->  Board -> Board
+makeMove pos player b = if isValid player b pos 
+                        then flipAll positions b player
+                        else b
+      where positions = pos:flipped player b pos -- the chosen position and the flipped positions
+
+-- Calculates the best move for the player using the minimax algorithm
+getPositionAI :: Board -> Player -> Pos
+getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult  
+    where playerCol = getPlayerCol player
+          allValidMoves = map fst (possibleMoves player b)
+          minmaxresult = map (\position -> (minimax 1 player (makeMove position player b),position)) allValidMoves
+          -- minmaxresult returns [(minmax value, position)]
+
+
+-- Evaluates how good a play is given the board where the play has been made 
+minimax :: Int -> Player -> Board -> Int
+minimax depth (Player disk _) board 
+    | gameOver (Player disk 0) nextPlayer board = if winner (Player disk 0) board then 10000 else -10000
+    | depth <= 0 = heuristic (Player disk 0) board
+    | otherwise = if nextColor /= disk       
+                  then - maxPlayNextColor       -- minimizing
+                  else  maxPlayNextColor        -- maximizing 
+    where 
+    nextColor = if canPlay (Player (opponentDisk disk) 0) board then (opponentDisk disk) else disk
+    nextPlayer = Player nextColor 0
+    nextPlayerPossibleMoves = map fst $ possibleMoves nextPlayer board 
+    maxPlayNextColor = maximum (map (\pos -> minimax (depth-1) nextPlayer (makeMove pos nextPlayer board)) nextPlayerPossibleMoves)
+
+winner :: Player -> Board -> Bool
+winner (Player disk _) board = playerPoint >= oppPoint
+      where playerPoint = countColor disk board 
+            oppPoint = countColor (opponentDisk disk) board
+
+-- computes the heuristic which is the player's score substracted with the opponent's score (can be improved to be smarter)
+heuristic :: Player -> Board -> Int
+heuristic (Player d p) b | d == Black = bScore - wScore
+                         | otherwise  = wScore - bScore
+      where (bScore,wScore) = updatePoints b
+
+
+opponentDisk :: Disk -> Disk
+opponentDisk Black = White
+opponentDisk White = Black
 
 -- TESTS ######################################################################
 -- TODO add props
@@ -186,3 +245,4 @@ showBoard =
 
 printBoard :: Board -> IO ()
 printBoard = putStr . showBoard
+
