@@ -1,2 +1,7 @@
 *.o
 *.hi
+
+/app
+/dist-newstyle
+othello.cabal
+CHANGELOG.md
