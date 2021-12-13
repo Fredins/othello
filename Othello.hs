@@ -210,7 +210,6 @@ opponentDisk Black = White
 opponentDisk White = Black
 
 -- TESTS ######################################################################
--- TODO add props
 
 instance Arbitrary Disk where
       arbitrary = elements [Black, White]
