@@ -24,13 +24,12 @@ import qualified GI.Gtk                        as G
 import           GI.Gtk.Declarative
 import           GI.Gtk.Declarative.App.Simple
 import           GI.Gtk.Declarative.Container.Grid
-import           Othello
+import           Othello                 hiding ( makeMove )
 
 
 data Screen = StartMenu
             | Play
             | GameOver
-
 
 data Mode = Pvp | Pve deriving (Eq, Show)
 
@@ -49,55 +48,40 @@ data Event = Close
            | ComputerMove
 
 
--- makeMove :: Pos -> Disk -> Transition State
---makeMove p d = 
+-- UPDATE #####################################################################
 
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
   Close   -> Exit
   Start m -> Transition s { screen = Play, mode = m } $ return Nothing
 
-  DiskClicked (p, d) ->
-    Transition
-        (if  null ps || isJust d
-          then s
-          else s { activeP = aP
-                 , playerB = pB
-                 , playerW = pW
-                 , board   = b
-                 , screen  = if gameOver pB pW b then GameOver else Play
-                 }
-        )
-      $ if mode == Pve then return (Just ComputerMove) else return Nothing
-   where
-    ps       = flipped activeP board p
-    b        = flipAll (p : ps) board activeP
-    (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
-    aP | activeP == playerB && canPlay pW b && not (null ps) = pW
-       | otherwise = pB
+  DiskClicked (p, d)
+    | mode == Pve -> Transition (makeMove s p d) $ return (Just ComputerMove)
+    | otherwise   -> Transition (makeMove s p d) $ return Nothing
 
-  ComputerMove -> 
-    Transition
-        (if null ps || isJust d
-          then s
-          else s { activeP = aP
-                 , playerB = pB
-                 , playerW = pW
-                 , board   = b
-                 , screen  = if gameOver pB pW b then GameOver else Play
-                 }
-        )
-      $ return Nothing
+  ComputerMove -> Transition (makeMove s p d) $ return Nothing
    where
-    d        = fromJust $ M.lookup p board
-    p        = getPositionAI board activeP
-    ps       = flipped playerW board p
-    b        = flipAll (p : ps) board activeP
-    (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
-    aP | activeP == playerB && canPlay pW b && not (null ps) = pW
-       | otherwise = pB
+    d = fromJust $ M.lookup p board
+    p = getPositionAI board activeP
 
-    
+
+makeMove :: State -> Pos -> Maybe Disk -> State
+makeMove s@State {..} p d
+  | null ps || isJust d = s
+  | otherwise = s { activeP = aP
+                  , playerB = pB
+                  , playerW = pW
+                  , board   = b
+                  , screen  = if gameOver pB pW b then GameOver else Play
+                  }
+ where
+  ps       = flipped activeP board p
+  b        = flipAll (p : ps) board activeP
+  (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
+  aP | activeP == playerB && canPlay pW b && not (null ps) = pW
+     | otherwise = pB
+
+-- VIEW #######################################################################
 
 view' :: State -> AppView G.Window Event
 view' s@State {..} =
@@ -184,6 +168,8 @@ grid s@State {..} = container G.Grid [classes ["grid"]] cs
     | p `elem` (fst <$> possibleMoves activeP board) = "gui/highlight.png"
     | otherwise = "gui/empty.png"
 
+
+-- MAIN #######################################################################
 
 main :: IO ()
 main = do
