@@ -192,6 +192,7 @@ minimax depth (Player disk _) board
     nextPlayerPossibleMoves = map fst $ possibleMoves nextPlayer board 
     maxPlayNextColor = maximum (map (\pos -> minimax (depth-1) nextPlayer (makeMove pos nextPlayer board)) nextPlayerPossibleMoves)
 
+-- checks if player is the winner of the board
 winner :: Player -> Board -> Bool
 winner (Player disk _) board = playerPoint >= oppPoint
       where playerPoint = countColor disk board 
@@ -210,6 +211,36 @@ opponentDisk White = Black
 
 -- TESTS ######################################################################
 -- TODO add props
+
+instance Arbitrary Disk where
+      arbitrary = elements [Black, White]
+
+instance Arbitrary Player where
+      arbitrary = elements [(Player Black 0), (Player White 0)]
+
+-- test that AI chooses positions that are possible moves
+prop_getpositionAI_legal :: Board -> Player -> Bool
+prop_getpositionAI_legal b p = if noPossibleMoves 
+                              then True 
+                              else isIn (getPositionAI b p) (map fst (possibleMoves p b))
+      where
+      isIn :: Pos -> [Pos] -> Bool
+      isIn _ [] = False
+      isIn aiPos (p:ps) = if aiPos == p then True else isIn aiPos ps
+      noPossibleMoves = (length $ possibleMoves p b) == 0
+
+-- check that range is valid of values heuristic can give
+prop_heuristics :: Player -> Board -> Bool
+prop_heuristics p b = heuristic p b <= 64 && heuristic p b >= -64
+
+-- check that heuristic gives positive value if the player has more disks on the board then the opponent
+prop_heuristics_color :: Player -> Board -> Bool
+prop_heuristics_color (Player d _) b 
+            | playerDisks >= opponentDisks = heuristic (Player d 0) b >= 0
+            | otherwise                    = heuristic (Player d 0) b < 0
+            where 
+            playerDisks = countColor d b
+            opponentDisks = countColor (opponentDisk d) b
 
 -- | possibleMoves correct for startingBoard 
 prop_possibleMoves_startingBoard :: Bool
