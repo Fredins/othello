@@ -135,7 +135,7 @@ header State {..} = container
     G.Box
     [#orientation := G.OrientationHorizontal]
     [ BoxChild defaultBoxChildProperties { padding = 10 }
-      $ widget G.Image [#file := "gui/white1.png"]
+      $ widget G.Image [#file := "assets/white1.png"]
     , widget G.Label [#label := pack (show $ points playerW)]
     ]
   , BoxChild defaultBoxChildProperties { padding = 100 } $ widget
@@ -147,7 +147,7 @@ header State {..} = container
     G.Box
     [#orientation := G.OrientationHorizontal]
     [ BoxChild defaultBoxChildProperties { padding = 10 }
-      $ widget G.Image [#file := "gui/black1.png"]
+      $ widget G.Image [#file := "assets/black1.png"]
     , widget G.Label [#label := pack (show $ points playerB)]
     ]
   ]
@@ -166,11 +166,11 @@ grid State {..} = container G.Grid [classes ["grid"]] cs
     )
 
   path :: (Pos, Maybe Disk) -> Text
-  path (_, Just White) = "gui/white.png"
-  path (_, Just Black) = "gui/black.png"
+  path (_, Just White) = "assets/white.png"
+  path (_, Just Black) = "assets/black.png"
   path (p, _)
-    | p `elem` (fst <$> possibleMoves activeP board) = "gui/highlight.png"
-    | otherwise = "gui/empty.png"
+    | p `elem` (fst <$> possibleMoves activeP board) = "assets/highlight.png"
+    | otherwise = "assets/empty.png"
 
 -- game over view
 gameOver :: State -> Widget Event
@@ -187,7 +187,7 @@ gameOver State {..} = container
       G.Box
       [#orientation := G.OrientationHorizontal]
       [ BoxChild defaultBoxChildProperties { padding = 10 }
-        $ widget G.Image [#file := "gui/white1.png"]
+        $ widget G.Image [#file := "assets/white1.png"]
       , widget G.Label [#label := pack (show $ points playerW)]
       ]
     , BoxChild defaultBoxChildProperties { padding = 100 }
@@ -196,7 +196,7 @@ gameOver State {..} = container
       G.Box
       [#orientation := G.OrientationHorizontal]
       [ BoxChild defaultBoxChildProperties { padding = 10 }
-        $ widget G.Image [#file := "gui/black1.png"]
+        $ widget G.Image [#file := "assets/black1.png"]
       , widget G.Label [#label := pack (show $ points playerB)]
       ]
     ]
@@ -210,11 +210,11 @@ gameOver State {..} = container
                                }
     (bin G.Button [] $ widget G.Image [#file := path pd])
   path :: (Pos, Maybe Disk) -> Text
-  path (_, Just White) = "gui/white.png"
-  path (_, Just Black) = "gui/black.png"
+  path (_, Just White) = "assets/white.png"
+  path (_, Just Black) = "assets/black.png"
   path (p, _)
-    | p `elem` (fst <$> possibleMoves activeP board) = "gui/highlight.png"
-    | otherwise = "gui/empty.png"
+    | p `elem` (fst <$> possibleMoves activeP board) = "assets/highlight.png"
+    | otherwise = "assets/empty.png"
   (pb, pw) = updatePoints board
   winner
     | pb > pw
@@ -233,7 +233,7 @@ main = do
 
   s <- maybe (fail "No screen?!") return =<< screenGetDefault
   p <- G.cssProviderNew
-  f <- fileNewForPath "gui/styles.css"
+  f <- fileNewForPath "styles.css"
   G.cssProviderLoadFromFile p f
   G.styleContextAddProviderForScreen
     s
