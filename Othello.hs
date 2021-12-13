@@ -174,7 +174,7 @@ getPositionAI :: Board -> Player -> Pos
 getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult  
     where playerCol = getPlayerCol player
           allValidMoves = map fst (possibleMoves player b)
-          minmaxresult = map (\position -> (minimax 2 player (makeMove position player b),position)) allValidMoves
+          minmaxresult = map (\position -> (minimax 4 player (makeMove position player b),position)) allValidMoves
           -- minmaxresult returns [(minmax value, position)]
 
 
