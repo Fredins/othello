@@ -81,8 +81,11 @@ makeMove s@State {..} p d
   ps       = flipped activeP board p
   b        = flipAll (p : ps) board activeP
   (pB, pW) = both (\d -> Player d $ countColor d b) (Black, White)
-  aP | activeP == playerB && canPlay pW b && not (null ps) = pW
-     | otherwise = pB
+  aP | null ps              = nextPlayer 
+     | canPlay nextPlayer b = nextPlayer
+     | otherwise            = activeP
+  nextPlayer = if activeP == playerW then pB else pW
+
 
 -- VIEW #######################################################################
 
