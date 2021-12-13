@@ -138,8 +138,8 @@ isValid :: Player -> Board -> Pos -> Bool
 isValid pl b p = not . null $ flipped pl b p
 
 -- game is over when whole board is filled with disks or none of the players can play
-gameOver :: Player -> Player -> Board -> Bool
-gameOver p1 p2 b = noPlays || fullBoard b
+isGameOver :: Player -> Player -> Board -> Bool
+isGameOver p1 p2 b = noPlays || fullBoard b
       where noPlays = (not $ canPlay p1 b) && (not $ canPlay p2 b)
 
 -- Returns true if all positions on board has a disk
@@ -174,14 +174,14 @@ getPositionAI :: Board -> Player -> Pos
 getPositionAI b player = snd $ M.findMax $ M.fromList minmaxresult  
     where playerCol = getPlayerCol player
           allValidMoves = map fst (possibleMoves player b)
-          minmaxresult = map (\position -> (minimax 3 player (makeMove position player b),position)) allValidMoves
+          minmaxresult = map (\position -> (minimax 2 player (makeMove position player b),position)) allValidMoves
           -- minmaxresult returns [(minmax value, position)]
 
 
 -- Evaluates how good a play is given the board where the play has been made 
 minimax :: Int -> Player -> Board -> Int
 minimax depth (Player disk _) board 
-    | gameOver (Player disk 0) (Player (opponentDisk disk) 0) board = if winner (Player disk 0) board then 10000 else -10000
+    | isGameOver (Player disk 0) (Player (opponentDisk disk) 0) board = if winner (Player disk 0) board then 10000 else -10000
     | depth <= 0 = heuristic (Player disk 0) board
     | otherwise = if nextColor /= disk       
                   then - maxPlayNextColor       -- minimizing
