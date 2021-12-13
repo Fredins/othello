@@ -2,24 +2,18 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 
 module Main where
 import           Control.Concurrent.Async       ( async )
 import           Control.Monad
-import           Data.ByteString                ( ByteString )
 import qualified Data.Map                      as M
 import           Data.Maybe
 import           Data.Text                      ( Text
                                                 , pack
                                                 )
 import           Data.Tuple.Extra               ( both )
-import           Data.Vector                    ( Vector
-                                                , fromList
-                                                )
-import           Debug.Trace
+import           Data.Vector                    ( fromList )
 import           GI.Gdk.Objects                 ( screenGetDefault )
 import           GI.Gio.Interfaces.File
 import qualified GI.Gtk                        as G
@@ -35,6 +29,7 @@ data Screen = StartMenu
 
 data Mode = Pvp | Pve deriving (Eq, Show)
 
+-- State of the application which the view is based of the state
 data State = State
   { activeP :: Player
   , playerB :: Player
@@ -44,23 +39,25 @@ data State = State
   , mode    :: Mode
   }
 
+-- Possible events 
 data Event = Close
            | DiskClicked (Pos, Maybe Disk)
            | Start Mode
            | ComputerMove
 
 
--- UPDATE #####################################################################
+-- UPDATE #####################################################################
 
+-- Handle events and modify the state. Called on event trigger
 update' :: State -> Event -> Transition State Event
 update' s@State {..} e = case e of
   Close   -> Exit
   Start m -> Transition s { screen = Play, mode = m } $ return Nothing
 
   DiskClicked (p, d)
-    | mode == Pve && activeP /= activeP' -> Transition (makeMove s p d)
+    | mode == Pve && activeP /= activeP' -> Transition s'
     $  return (Just ComputerMove)
-    | otherwise -> Transition (makeMove s p d) $ return Nothing
+    | otherwise -> Transition s' $ return Nothing
     where s'@State { activeP = activeP' } = makeMove s p d
 
   ComputerMove -> Transition (makeMove s p d) $ return Nothing
@@ -69,16 +66,16 @@ update' s@State {..} e = case e of
     p = getPositionAI board activeP
 
 
+-- Update state according to move with position p and disk d
 makeMove :: State -> Pos -> Maybe Disk -> State
 makeMove s@State {..} p d
   | (null ps && length (emptyPositions board) /= 1) || isJust d = s
-  | otherwise = s
-    { activeP = aP
-    , playerB = pB
-    , playerW = pW
-    , board   = b
-    , screen  = if isGameOver pB pW b then GameOver else Play
-    }
+  | otherwise = s { activeP = aP
+                  , playerB = pB
+                  , playerW = pW
+                  , board   = b
+                  , screen  = if isGameOver pB pW b then GameOver else Play
+                  }
  where
   ps       = flipped activeP board p
   b        = flipAll (p : ps) board activeP
@@ -89,8 +86,9 @@ makeMove s@State {..} p d
   nextPlayer = if activeP == playerW then pB else pW
 
 
--- VIEW #######################################################################
+-- VIEW ########################################################################
 
+-- Creates a view according to the state reactively.
 view' :: State -> AppView G.Window Event
 view' s@State {..} =
   bin G.Window [#title := "Othello", on #destroy Close] $ case screen of
@@ -107,7 +105,7 @@ view' s@State {..} =
     GameOver -> gameOver s
 
 
-
+-- start menu view
 startMenu :: Widget Event
 startMenu = container
   G.Box
@@ -125,6 +123,7 @@ startMenu = container
   ]
 
 
+-- header view
 header :: State -> Widget Event
 header State {..} = container
   G.Box
@@ -153,11 +152,12 @@ header State {..} = container
     ]
   ]
 
+-- grid view
 grid :: State -> Widget Event
-grid s@State {..} = container G.Grid [classes ["grid"]] cs
+grid State {..} = container G.Grid [classes ["grid"]] cs
  where
   cs = fromList $ map c $ M.toList board
-  c pd@((y, x), d) = GridChild
+  c pd@((y, x), _) = GridChild
     defaultGridChildProperties { leftAttach = fromIntegral x
                                , topAttach  = fromIntegral y
                                }
@@ -172,8 +172,9 @@ grid s@State {..} = container G.Grid [classes ["grid"]] cs
     | p `elem` (fst <$> possibleMoves activeP board) = "gui/highlight.png"
     | otherwise = "gui/empty.png"
 
+-- game over view
 gameOver :: State -> Widget Event
-gameOver s@State {..} = container
+gameOver State {..} = container
   G.Box
   [classes ["game_over"], #orientation := G.OrientationVertical]
   [ BoxChild defaultBoxChildProperties $ container
@@ -203,7 +204,7 @@ gameOver s@State {..} = container
   ]
  where
   cs = fromList $ map c $ M.toList board
-  c pd@((y, x), d) = GridChild
+  c pd@((y, x), _) = GridChild
     defaultGridChildProperties { leftAttach = fromIntegral x
                                , topAttach  = fromIntegral y
                                }
@@ -223,8 +224,9 @@ gameOver s@State {..} = container
     | otherwise
     = "Draw!"
 
--- MAIN #######################################################################
+-- MAIN #######################################################################
 
+-- loads css and starts the program loop with an intial state
 main :: IO ()
 main = do
   void $ G.init Nothing
