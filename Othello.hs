@@ -10,25 +10,6 @@ import           Data.Maybe
 import           Debug.Trace                    ( trace )
 import           Test.QuickCheck
 
-{-
-startingBoard
-showBoard
-printBoard
-positions
-updateBoard: Pos ->  Color -> Board -> Board
-      - adds new disc with the right color
-      - calls flip: flips discs
-flip: Pos -> Board -> Player -> Board
-      - 
-findFlips: 
-possibleMoves
-emptyPositions
-validFlip: Pos -> Board -> Player -> [Pos]
-      - check if position is empty
-      - check if positions around position is opposite color
-      - 
-gameOver
--}
 
 -- ################################### Data Types ###################################
 type Board = M.Map Pos (Maybe Disk)
